@@ -146,6 +146,7 @@ export async function handleSetup(message: Message, args: string[] = []): Promis
     anime:     handleAnimeSetup,
     youtube:   handleYouTubeSetup,
     minecraft: handleMinecraftSetup,
+    bot:       handleBotSetup,
   };
 
   if (preset === "list" || preset === "help") {
@@ -157,7 +158,8 @@ export async function handleSetup(message: Message, args: string[] = []): Promis
       "`!setup crypto` — Crypto & trading server\n" +
       "`!setup anime` — Anime community server\n" +
       "`!setup youtube` — YouTube / content creator server\n" +
-      "`!setup minecraft` — Minecraft server\n\n" +
+      "`!setup minecraft` — Minecraft server\n" +
+      "`!setup bot` — Discord bot support & listing server\n\n" +
       "⚠️ Each preset **deletes all existing channels** and rebuilds from scratch.",
     );
     return;
@@ -1300,4 +1302,280 @@ async function handleMinecraftSetup(message: Message): Promise<void> {
       "*Happy mining!* 💎",
     extraNote: "📌 Remember to post your server IP in **#server-ip**!\n",
   });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BOT SUPPORT & LISTING PRESET
+// ─────────────────────────────────────────────────────────────
+
+async function handleBotSetup(message: Message): Promise<void> {
+  const guild: Guild = message.guild!;
+  const botMember = guild.members.me!;
+  const botId = botMember.id;
+  const everyoneId = guild.id;
+
+  if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    await message.reply(
+      "⚠️ I need **Manage Roles** permission and my role at the **top** of the role list.\nGo to Server Settings → Roles → drag my role to the top, then try again.",
+    );
+    return;
+  }
+
+  const statusMsg = await message.reply("🤖 Building your **Bot Support & Listing server**... please wait!");
+
+  const BOT_ROLES = [
+    { name: "👑 Owner",         color: 0xf1c40f, hoist: true,  perms: [PermissionFlagsBits.Administrator] },
+    { name: "⚙️ Admin",         color: 0xe74c3c, hoist: true,  perms: [PermissionFlagsBits.Administrator] },
+    { name: "🛡️ Moderator",     color: 0x3498db, hoist: true,  perms: [PermissionFlagsBits.ManageMessages, PermissionFlagsBits.KickMembers, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ViewChannel] },
+    { name: "👨‍💻 Developer",     color: 0x5865f2, hoist: true,  perms: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ViewChannel, PermissionFlagsBits.EmbedLinks] },
+    { name: "⭐ Trusted Tester",color: 0x9b59b6, hoist: true,  perms: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ViewChannel] },
+    { name: "🤖 Bot",           color: 0x979c9f, hoist: true,  perms: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ViewChannel] },
+    { name: "✅ Member",        color: 0x2ecc71, hoist: false, perms: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory] },
+    { name: "👀 Muted",         color: 0x2c2f33, hoist: false, perms: [] },
+  ];
+
+  const BOT_TEXT: CategoryDef[] = [
+    {
+      category: "📋 ── INFORMATION ──",
+      channels: [
+        { name: "📜・rules",             topic: "Read the rules before using the bot." },
+        { name: "📢・announcements",     topic: "Bot and server announcements.", staffOnly: true },
+        { name: "🔔・bot-updates",       topic: "Changelogs and update notes.", staffOnly: true },
+        { name: "📖・changelog",         topic: "Full version history and patch notes.", staffOnly: true },
+        { name: "🗺️・server-guide",      topic: "How this server works." },
+      ],
+    },
+    {
+      category: "🤖 ── BOT INFO ──",
+      channels: [
+        { name: "📋・commands-list",     topic: "Full list of available commands." },
+        { name: "🔗・invite-bot",        topic: "Invite the bot to your server." },
+        { name: "⭐・vote-for-bot",      topic: "Vote for the bot on top.gg and other lists." },
+        { name: "📊・bot-status",        topic: "Bot uptime and status.", staffOnly: true },
+        { name: "🌐・bot-stats",         topic: "Live bot statistics — servers, users, commands run.", staffOnly: true },
+      ],
+    },
+    {
+      category: "🛠️ ── SUPPORT ──",
+      channels: [
+        { name: "❓・support-chat",      topic: "Ask for help with the bot here.", slowmode: 5 },
+        { name: "🐛・bug-reports",       topic: "Report bugs with steps to reproduce.", slowmode: 30 },
+        { name: "💡・feature-requests",  topic: "Suggest new features for the bot.", slowmode: 60 },
+        { name: "📬・faq",              topic: "Frequently asked questions." },
+      ],
+    },
+    {
+      category: "🌐 ── COMMUNITY ──",
+      channels: [
+        { name: "💬・general",           topic: "General chat." },
+        { name: "👋・introductions",     topic: "Introduce yourself!" },
+        { name: "🤖・bot-showcase",      topic: "Show off bots you've made or tested.", slowmode: 60 },
+        { name: "📣・self-promo",        topic: "Promote your bots and servers.", slowmode: 300 },
+        { name: "🤣・memes",             topic: "Discord and programming memes." },
+        { name: "🏅・giveaways",         topic: "Giveaway announcements.", staffOnly: true },
+      ],
+    },
+    {
+      category: "👨‍💻 ── DEVELOPMENT ──",
+      channels: [
+        { name: "💻・dev-chat",          topic: "Bot development discussion.", staffOnly: true },
+        { name: "🔧・testing",           topic: "Bot testing zone.", staffOnly: true },
+        { name: "📝・todo-list",         topic: "Planned features and tasks.", staffOnly: true },
+        { name: "🚀・beta-testing",      topic: "Beta features and early access." },
+      ],
+    },
+    {
+      category: "🛠️ ── STAFF ONLY ──",
+      channels: [
+        { name: "👮・staff-chat",        topic: "Staff discussion.", staffOnly: true },
+        { name: "📝・mod-logs",          topic: "Moderation logs.", staffOnly: true },
+        { name: "📬・reports",           topic: "Reports inbox.", staffOnly: true },
+        { name: "⚙️・bot-config",        topic: "Bot configuration.", staffOnly: true },
+      ],
+    },
+  ];
+
+  const BOT_VOICE = [
+    {
+      category: "🔊 ── VOICE ──",
+      channels: ["💬 General", "👨‍💻 Dev Lounge", "🎮 Gaming", "💤 AFK"],
+    },
+    {
+      category: "🛠️ ── STAFF VOICE ──",
+      channels: ["🛡️ Staff Meeting", "🔒 Admin Only", "🔧 Dev Meeting"],
+    },
+  ];
+
+  await Promise.allSettled(guild.channels.cache.map((c) => c.delete().catch(() => null)));
+
+  const roleResults = await Promise.allSettled(
+    BOT_ROLES.map((r) =>
+      guild.roles.create({
+        name: r.name,
+        color: r.color,
+        hoist: r.hoist,
+        permissions: new PermissionsBitField(r.perms),
+      }),
+    ),
+  );
+
+  const roles: Record<string, Role> = {};
+  roleResults.forEach((res, i) => {
+    if (res.status === "fulfilled") roles[BOT_ROLES[i]!.name] = res.value as Role;
+  });
+
+  const staffRole = roles["🛡️ Moderator"];
+
+  const catResults = await Promise.allSettled(
+    BOT_TEXT.map((s) => guild.channels.create({ name: s.category, type: ChannelType.GuildCategory })),
+  );
+
+  const allText = await Promise.allSettled(
+    BOT_TEXT.flatMap((s, i) => {
+      const parent = catResults[i]?.status === "fulfilled"
+        ? (catResults[i]!.value as CategoryChannel).id
+        : undefined;
+      return s.channels.map((ch) =>
+        guild.channels.create({
+          name: ch.name,
+          type: ChannelType.GuildText,
+          topic: ch.topic,
+          parent,
+          rateLimitPerUser: ch.slowmode ?? 0,
+          permissionOverwrites: ch.staffOnly
+            ? [
+                { id: everyoneId, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: botId,      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                ...(staffRole ? [{ id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }] : []),
+              ]
+            : [],
+        }),
+      );
+    }),
+  );
+
+  const voiceCats = await Promise.allSettled(
+    BOT_VOICE.map((s) => guild.channels.create({ name: s.category, type: ChannelType.GuildCategory })),
+  );
+  await Promise.allSettled(
+    BOT_VOICE.flatMap((s, i) => {
+      const parent = voiceCats[i]?.status === "fulfilled"
+        ? (voiceCats[i]!.value as CategoryChannel).id
+        : undefined;
+      return s.channels.map((name) =>
+        guild.channels.create({ name, type: ChannelType.GuildVoice, parent }),
+      );
+    }),
+  );
+
+  const freshChannels = guild.channels.cache;
+  const findCh = (kw: string) =>
+    freshChannels.find((c) => c.name.includes(kw) && c.type === ChannelType.GuildText) as TextChannel | undefined;
+
+  const announcements   = findCh("announcements");
+  const rules           = findCh("rules");
+  const inviteChannel   = findCh("invite-bot");
+  const commandsChannel = findCh("commands-list");
+
+  const clientId = message.client.user.id;
+  const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands`;
+
+  const textCount  = allText.filter((r) => r.status === "fulfilled").length;
+  const voiceCount = BOT_VOICE.flatMap((s) => s.channels).length;
+  const roleCount  = Object.keys(roles).length;
+
+  await Promise.allSettled([
+    announcements?.send({
+      content: "@everyone",
+      embeds: [
+        new EmbedBuilder()
+          .setTitle(`🤖 Welcome to ${guild.name}!`)
+          .setDescription(
+            "The bot support server is ready!\n\n" +
+            "📋 Read **#commands-list** to see all commands\n" +
+            "🔗 Invite the bot in **#invite-bot**\n" +
+            "❓ Get help in **#support-chat**\n" +
+            "🐛 Found a bug? Report it in **#bug-reports**\n" +
+            "💡 Want a feature? Suggest it in **#feature-requests**"
+          )
+          .setColor(0x5865f2)
+          .setThumbnail(message.client.user.displayAvatarURL())
+          .setFooter({ text: `Set up by ${message.author.tag}` })
+          .setTimestamp(),
+      ],
+    }).catch(() => null),
+
+    rules?.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("📜 Server Rules")
+          .setDescription("Breaking rules may result in a **mute, kick, or ban**.")
+          .setColor(0xe74c3c)
+          .addFields(
+            { name: "1️⃣ Be Respectful",      value: "No harassment, hate speech, or bullying." },
+            { name: "2️⃣ No Spam",            value: "No spamming messages, commands, or mentions." },
+            { name: "3️⃣ No NSFW",            value: "Keep all content safe and appropriate." },
+            { name: "4️⃣ No Advertising",     value: "Do not advertise servers without staff permission." },
+            { name: "5️⃣ Use Right Channels",  value: "Use channels for their intended purpose." },
+            { name: "6️⃣ Follow Discord ToS",  value: "https://discord.com/terms" },
+          )
+          .setFooter({ text: "Enjoy the bot!" }),
+      ],
+    }).catch(() => null),
+
+    inviteChannel?.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("🔗 Invite the Bot")
+          .setDescription(
+            `Click the button below to invite **${message.client.user.username}** to your server!\n\n` +
+            "✅ The bot will set up everything automatically\n" +
+            "⚡ Supports economy, leveling, moderation, fun and more\n" +
+            "🛠️ Use `!setup` after inviting to configure your server"
+          )
+          .setColor(0x5865f2)
+          .setThumbnail(message.client.user.displayAvatarURL())
+          .setFooter({ text: `${guild.name} • Bot Support Server` }),
+      ],
+      components: [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setLabel("➕ Invite Bot")
+            .setStyle(ButtonStyle.Link)
+            .setURL(inviteUrl),
+          new ButtonBuilder()
+            .setLabel("🌐 Vote on Top.gg")
+            .setStyle(ButtonStyle.Link)
+            .setURL(`https://top.gg/bot/${clientId}/vote`),
+        ),
+      ],
+    }).catch(() => null),
+
+    commandsChannel?.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("📋 Commands List")
+          .setColor(0x5865f2)
+          .addFields(
+            { name: "💰 Economy",     value: "`!balance` `!daily` `!pay` `!shop` `!buy` `!give`", inline: false },
+            { name: "🎰 Gambling",    value: "`!slots` `!coinflip` `!roulette` `!blackjack` `!dice`", inline: false },
+            { name: "📊 Leveling",    value: "`!rank` `!leaderboard` `!setlevel` `!resetxp`", inline: false },
+            { name: "🛡️ Moderation", value: "`!ban` `!kick` `!mute` `!warn` `!purge` `!nuke`", inline: false },
+            { name: "🎉 Fun",         value: "`!8ball` `!joke` `!meme` `!roll` `!hug` `!slap`", inline: false },
+            { name: "📣 Utility",     value: "`!say` `!embedsay` `!announce` `!ticket` `!info`", inline: false },
+            { name: "⚙️ Setup",       value: "`!setup` `!setup bot` `!setup gaming` `!setup crypto` and more", inline: false },
+          )
+          .setFooter({ text: "Use ! prefix for all commands" }),
+      ],
+    }).catch(() => null),
+  ]);
+
+  await statusMsg.edit(
+    `✅ **Bot Support & Listing server is ready!**\n\n` +
+    `🎭 **${roleCount}** roles created\n` +
+    `💬 **${textCount}** text channels created\n` +
+    `🔊 **${voiceCount}** voice channels created\n\n` +
+    `🔗 Invite link posted in **#invite-bot** with a clickable button!\n` +
+    (roleCount < BOT_ROLES.length ? "\n⚠️ Some roles failed — drag my role to the **top** of the role list." : ""),
+  ).catch(() => null);
 }
